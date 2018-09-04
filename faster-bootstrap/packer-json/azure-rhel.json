@@ -1,0 +1,111 @@
+{
+    "variables": {
+        "client_id": "",
+        "client_secret": "",
+        "tenant_id": "",
+        "subscription_id": "",
+        "managed_image_resource_group": "",
+        "parcel_url": "",
+        "cm_repository_url": "",
+        "jdk_repository_url": "",
+        "source_image": "",
+        "image_prefix": "",
+        "location": "",
+        "ssh_username": "",
+        "associate_public_ip_address": "false",
+        "java_version": "",
+        "preextract_parcel": "true"
+    },
+    "builders": [
+    {
+        "type": "azure-arm",
+        "client_id": "{{user `client_id`}}",
+        "client_secret": "{{user `client_secret`}}",
+        "tenant_id": "{{user `tenant_id`}}",
+        "subscription_id": "{{user `subscription_id`}}",
+        "managed_image_name": "{{user `image_prefix`}}",
+        "managed_image_resource_group_name": "{{user `managed_image_resource_group`}}",
+        "vm_size": "Standard_DS2_v2",
+        "location": "{{user `location`}}",
+        "os_type": "Linux",
+        "image_publisher": "OpenLogic",
+        "image_offer": "CentOS",
+        "image_sku": "7.4",
+        "image_version": "latest",
+        "ssh_username": "{{user `ssh_username`}}",
+        "ssh_timeout": "10m",
+        "ssh_pty": "true"
+    }],
+    "provisioners": [
+    {
+        "type": "shell",
+        "inline": "sudo yum install --assumeyes gdisk"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo yum install --assumeyes unzip"
+    },
+    {
+        "type": "file",
+        "source": "scripts/provisioning/internal/",
+        "destination": "/tmp"
+    },
+    {
+        "type": "shell",
+        "inline": "shopt -s nullglob; for s in /tmp/internal*.sh; do bash \"$s\"; done",
+        "environment_vars": ["SPARK2_PARCEL_URL={{user `spark2_parcel_url`}}",
+                             "SPARK2_CSD_URL={{user `spark2_csd_url`}}",
+                             "KAFKA_PARCEL_URL={{user `kafka_parcel_url`}}",
+                             "CDSW_PARCEL_URL={{user `cdsw_parcel_url`}}",
+                             "CDSW_CSD_URL={{user `cdsw_csd_url`}}",
+                             "STREAMSETS_PARCEL_URL={{user `streamsets_parcel_url`}}",
+                             "STREAMSETS_CSD_URL={{user `streamsets_csd_url`}}",
+                             "ARCADIA_ZIP_URL={{user `arcadia_zip_url`}}",
+                             "KEYTRUSTEE_KMS_PARCEL_URL={{user `keytrustee_kms_parcel_url`}}",
+                             "KEYTRUSTEE_SERVER_PARCEL_URL={{user `keytrustee_server_parcel_url`}}",
+                             "KEYTRUSTEE_KEYHSM_URL={{user `keytrustee_keyhsm_url`}}",
+                             "PREEXTRACT_PARCEL={{user `preextract_parcel`}}"]
+    },
+    {
+        "type": "shell",
+        "script": "scripts/provisioning/rewrite_root_disk_partition_table.sh",
+        "environment_vars": ["PATH=/bin:/sbin:/usr/bin:/usr/sbin",
+                             "VIRTUALIZATION_TYPE={{user `ami_virtualization_type`}}"],
+        "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo reboot",
+        "expect_disconnect": true
+    },
+    {
+        "type": "file",
+        "source": "scripts/provisioning/service_control.sh",
+        "destination": "/tmp/service_control.sh",
+        "pause_before": "120s"
+    },
+    {
+        "type": "file",
+        "source": "files/jce/",
+        "destination": "/tmp"
+    },
+    {
+        "type": "shell",
+        "scripts": ["scripts/provisioning/rhel_provisioner.sh",
+                    "scripts/provisioning/setup_unlimited_strength_jce.sh",
+                    "scripts/provisioning/parcel_provisioner.sh"],
+        "environment_vars": ["PARCEL_URL={{user `parcel_url`}}", "CM_REPOSITORY_URL={{user `cm_repository_url`}}",
+                             "JAVA_VERSION={{user `java_version`}}",
+                             "JDK_REPOSITORY_URL={{user `jdk_repository_url`}}",
+                             "PREEXTRACT_PARCEL={{user `preextract_parcel`}}"]
+    },
+    {
+    "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
+    "inline": [
+      "/usr/sbin/waagent -force -deprovision+user && export HISTSIZE=0 && sync"
+    ],
+    "inline_shebang": "/bin/sh -x",
+    "type": "shell",
+    "skip_clean": true
+    }]
+}

@@ -1,0 +1,122 @@
+{
+    "variables": {
+        "region": "",
+        "parcel_url": "",
+        "cm_repository_url": "",
+        "jdk_repository_url": "",
+        "ami": "",
+        "vpc_id": "",
+        "subnet_id": "",
+        "security_group_ids": "",
+        "ami_prefix": "",
+        "ami_virtualization_type": "",
+        "root_device_name": "",
+        "ssh_username": "",
+        "ssh_keypair_name": "",
+        "ssh_private_key_file": "",
+        "associate_public_ip_address": "false",
+        "java_version": "",
+        "preextract_parcel": "false"
+    },
+    "builders": [
+    {
+        "type": "amazon-ebs",
+        "region": "{{user `region`}}",
+        "source_ami": "{{user `ami`}}",
+        "instance_type": "m3.xlarge",
+        "ssh_username": "{{user `ssh_username`}}",
+        "ssh_keypair_name": "{{user `ssh_keypair_name`}}",
+        "ssh_private_key_file": "{{user `ssh_private_key_file`}}",
+        "ami_name": "{{user `ami_prefix`}} {{timestamp}}",
+        "ami_virtualization_type": "{{user `ami_virtualization_type`}}",
+        "ssh_timeout": "10m",
+        "launch_block_device_mappings": [{
+            "device_name": "{{user `root_device_name`}}",
+            "volume_size": 60,
+            "delete_on_termination": true
+        }],
+        "vpc_id": "{{user `vpc_id`}}",
+        "subnet_id": "{{user `subnet_id`}}",
+        "security_group_ids": "{{user `security_group_ids`}}",
+        "ssh_pty": "true",
+        "ssh_interface": "private_ip",
+        "associate_public_ip_address": "{{user `associate_public_ip_address`}}"
+    }],
+    "provisioners": [
+    {
+    "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E sh '{{ .Path }}'",
+    "inline": [
+      "echo proxy=10.7.0.5:3128 > /root/.curlrc",
+      "echo noproxy=localhost,127.0.0.1,169.254.169.254,.trng201809.lab >> /root/.curlrc",
+      "echo use_proxy=on > /root/.wgetrc",
+      "echo http_proxy=http://10.7.0.5:3128/ >> /root/.wgetrc",
+      "echo https_proxy=http://10.7.0.5:3128/ >> /root/.wgetrc",
+      "echo ftp_proxy=http://10.7.0.5:3128/ >> /root/.wgetrc",
+      "echo no_proxy=localhost,127.0.0.1,169.254.169.254,.trng201809.lab >> /root/.wgetrc",
+      "echo enableProxy=1 >> /etc/yum.conf",
+      "echo httpProxy=http://10.7.0.5:3128 >> /etc/yum.conf",
+      "rm -f /etc/yum.repos.d/cloudera-*.repo",
+      "rm -rf /opt/cloudera"
+    ],
+    "inline_shebang": "/bin/sh -x",
+    "type": "shell"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo yum install --assumeyes gdisk shadow-utils unzip wget curl"
+    },
+    {
+        "type": "file",
+        "source": "scripts/provisioning/internal/",
+        "destination": "/tmp"
+    },
+    {
+        "type": "shell",
+        "inline": "shopt -s nullglob; for s in /tmp/internal*.sh; do bash \"$s\"; done",
+        "environment_vars": ["SPARK2_PARCEL_URL={{user `spark2_parcel_url`}}",
+                             "SPARK2_CSD_URL={{user `spark2_csd_url`}}",
+                             "KAFKA_PARCEL_URL={{user `kafka_parcel_url`}}",
+                             "CDSW_PARCEL_URL={{user `cdsw_parcel_url`}}",
+                             "CDSW_CSD_URL={{user `cdsw_csd_url`}}",
+                             "STREAMSETS_PARCEL_URL={{user `streamsets_parcel_url`}}",
+                             "STREAMSETS_CSD_URL={{user `streamsets_csd_url`}}",
+                             "ARCADIA_ZIP_URL={{user `arcadia_zip_url`}}",
+                             "KEYTRUSTEE_KMS_PARCEL_URL={{user `keytrustee_kms_parcel_url`}}",
+                             "KEYTRUSTEE_SERVER_PARCEL_URL={{user `keytrustee_server_parcel_url`}}",
+                             "KEYTRUSTEE_KEYHSM_URL={{user `keytrustee_keyhsm_url`}}",
+                             "PREEXTRACT_PARCEL={{user `preextract_parcel`}}"]
+    },
+    {
+        "type": "shell",
+        "script": "scripts/provisioning/rewrite_root_disk_partition_table.sh",
+        "environment_vars": ["PATH=/bin:/sbin:/usr/bin:/usr/sbin",
+                             "VIRTUALIZATION_TYPE={{user `ami_virtualization_type`}}"],
+        "execute_command": "chmod +x {{ .Path }}; {{ .Vars }} sudo -E {{ .Path }}"
+    },
+    {
+        "type": "shell",
+        "inline": "sudo /usr/sbin/reboot",
+        "expect_disconnect": true
+    },
+    {
+        "type": "file",
+        "source": "scripts/provisioning/service_control.sh",
+        "destination": "/tmp/service_control.sh",
+        "pause_before": "120s"
+    },
+    {
+        "type": "file",
+        "source": "files/jce/",
+        "destination": "/tmp"
+    },
+    {
+        "type": "shell",
+        "scripts": ["scripts/provisioning/rhel_provisioner.sh",
+                    "scripts/provisioning/setup_unlimited_strength_jce.sh",
+                    "scripts/provisioning/parcel_provisioner.sh"],
+        "environment_vars": ["PARCEL_URL={{user `parcel_url`}}", "CM_REPOSITORY_URL={{user `cm_repository_url`}}",
+                             "JAVA_VERSION={{user `java_version`}}",
+                             "JDK_REPOSITORY_URL={{user `jdk_repository_url`}}",
+                             "PREEXTRACT_PARCEL={{user `preextract_parcel`}}"]
+    }]
+}
