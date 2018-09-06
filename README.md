@@ -1,4 +1,4 @@
-#Solutions for Director training exercise for MACkathon Sept 2018
+# Solutions for Director training exercise for MACkathon Sept 2018
 
 There are two high level directories - director and faster-bootstrap  
 **director** - Config files and scripts to build a cluster  
