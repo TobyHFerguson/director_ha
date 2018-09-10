@@ -33,7 +33,7 @@ At a minimum you need:
 * Instance (`c4.large`) on which to install Director
 
 ### Director
-1. Install director as per the [Cloudera docs|https://www.cloudera.com/documentation/director/latest/topics/director_get_started_aws_install_dir_server.html] (I'll assume you setup the username/password as `admin/admin`
+1. Install director as per the [Cloudera docs](https://www.cloudera.com/documentation/director/latest/topics/director_get_started_aws_install_dir_server.html) (I'll assume you setup the username/password as `admin/admin`
 1. On the director instance clone this repo
 1. In the `director` subdirectory
     1. Edit `site.xml` to reflect your AWS infrastructure
