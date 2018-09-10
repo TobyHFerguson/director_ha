@@ -1,8 +1,8 @@
 # Director HA
 
-There are two high level directories - director and faster-bootstrap  
-**director** - Config files and scripts to build a cluster  
-**faster-bootstrap** - packer config files and scripts to build a self contained custom image for AWS, Azure and GCP
+A conf system to build an HA Cloudera cluster using Director in AWS.
+
+Tested on Director 2.8
 
 ## Resulting Architecture
 The `aws.conf` file is the tip of several files which together can be used to build an HA cluster with `HDFS` and `HIVE` services, assuming up to three Availability Zones and three subnets. It is expected that a load balancer and an external MySQL compatible database server will be available (along with security groups, routing tables etc.). As currently configured Director and the instances it spawns must have outbound access to the internet (for access to AWS services and/or external repositories). 
@@ -29,7 +29,7 @@ At a minimum you need:
 * Security Group with ssh access inbound
 * MySQL database
 * Load balancer
-* Custom AMI built using the `faster-bootstrap` packages etc.
+* Custom AMI built using the information in the `faster-bootstrap` directory located in the [Cloudera director-scripts github repo](https://github.com/cloudera/director-scripts)
 * Instance (`c4.large`) on which to install Director
 
 ### Director
