@@ -1,21 +1,18 @@
-# Solutions for Director training exercise for MACkathon Sept 2018
+# Director HA
 
 There are two high level directories - director and faster-bootstrap  
 **director** - Config files and scripts to build a cluster  
 **faster-bootstrap** - packer config files and scripts to build a self contained custom image for AWS, Azure and GCP
 
+## Resulting Architecture
+The `aws.conf` file is the tip of several files which together can be used to build an HA cluster with `HDFS` and `HIVE` services, assuming up to three Availability Zones and three subnets. It is expected that a load balancer and an external MySQL compatible database server will be available (along with security groups, routing tables etc.). As currently configured Director and the instances it spawns must have outbound access to the internet (for access to AWS services and/or external repositories). 
+
 ## director
-To use director first setup all the environment configurations in site.conf. There are some additional configurations in scripts and config files that needs to be updated. To launch a cluster build in an evironment where proxy is needed for outside access run 
+This is used to build the AWS based HA architecture. The various configuration data are in `site.xml` - you'll need to edit that file to adjust to your infrastructure etc.
 
-```
-DIRECTOR_CLIENT_JAVA_OPTS="-Dhttp.proxyHost=10.7.0.5 -Dhttp.proxyPort=3128 \
- -Dhttp.nonProxyHosts=localhost|127.*|[::1]|169.254.169.254|.trng201809.lab|10.* \
- -Dhttps.proxyHost=10.7.0.5 -Dhttps.proxyPort=3128" cloudera-director \
- bootstrap-remote azure.conf --lp.remote.username=<user> \
- --lp.remote.password=<password> --lp.remote.tlsEnabled=true
-```
+It is expected that director is on an instance (something like a `c4.2xlarge`) with access to the VPC and subnets into which the clusters will be deployed. (Easiest is to just have director in the exact same VPC!). The `site.conf` file contains most of the parameters required to be changed. 
 
-Please note that in some of the config files passwords are embedded in plain text. These can be handled in few ways. The passwords can be passed as custom data and referred in the scripts. For commands such as joining the VM instance to the AD domain, A kerberos ticket cache can be used instead of password. For this case a keytab can be either be downloaded from a safe location at the time of bootstrap or the keytab be embedded as part of the image.
+
 
 ## faster-bootstrap
 To use faster bootstrap first download the packer utility from packer.io. Next customize the appropriate config file named packer-var-aws.json, packer-var-azure.json or packer-var-gcp.json. You can then launch the image build by using the command
@@ -23,3 +20,23 @@ To use faster bootstrap first download the packer utility from packer.io. Next c
 ```
 ./packer build -on-error=ask -var-file=packer-var-azure.json packer-json/azure-rhel.json
 ```
+
+## Overall Workflow
+### Build out your AWS Infrastructure
+At a minimum you need:
+* VPC
+* Subnet with internet access outbound
+* Security Group with ssh access inbound
+* MySQL database
+* Load balancer
+* Custom AMI built using the `faster-bootstrap` packages etc.
+* Instance (`c4.large`) on which to install Director
+
+### Director
+1. Install director as per the [Cloudera docs|https://www.cloudera.com/documentation/director/latest/topics/director_get_started_aws_install_dir_server.html] (I'll assume you setup the username/password as `admin/admin`
+1. On the director instance clone this repo
+1. In the `director` subdirectory
+    1. Edit `site.xml` to reflect your AWS infrastructure
+    1. Execute `cloudera-director bootstrap-remote aws.conf --lp.remote.username=admin --lp.remote.password=admin`
+
+This should build out a 13 node HA cluster. 
