@@ -12,15 +12,6 @@ This is used to build the AWS based HA architecture. The various configuration d
 
 It is expected that director is on an instance (something like a `c4.2xlarge`) with access to the VPC and subnets into which the clusters will be deployed. (Easiest is to just have director in the exact same VPC!). The `site.conf` file contains most of the parameters required to be changed. 
 
-
-
-## faster-bootstrap
-To use faster bootstrap first download the packer utility from packer.io. Next customize the appropriate config file named packer-var-aws.json, packer-var-azure.json or packer-var-gcp.json. You can then launch the image build by using the command
-
-```
-./packer build -on-error=ask -var-file=packer-var-azure.json packer-json/azure-rhel.json
-```
-
 ## Overall Workflow
 ### Build out your AWS Infrastructure
 At a minimum you need:
